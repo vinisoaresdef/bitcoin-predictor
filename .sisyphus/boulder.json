@@ -27,6 +27,15 @@
       "agent": "Sisyphus-Junior",
       "category": "unspecified-high",
       "updated_at": "2026-05-04T18:22:59.606Z"
+    },
+    "todo:8": {
+      "task_key": "todo:8",
+      "task_label": "8",
+      "task_title": "**Wire everything together in main.go** [TDD]",
+      "session_id": "ses_20bbe5667ffedR4EtMPZy8W2Im",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-04T18:46:47.553Z"
     }
   }
 }

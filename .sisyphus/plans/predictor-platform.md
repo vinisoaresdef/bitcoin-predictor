@@ -735,7 +735,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 8. **Wire everything together in main.go** [TDD]
+- [x] 8. **Wire everything together in main.go** [TDD]
 
   **What to do**:
   - Create `go-backend/cmd/predictor/main.go`
