@@ -7,3 +7,6 @@ numpy==1.26.3
 orjson==3.9.13
 pydantic==2.5.3
 httpx==0.26.0
+requests==2.31.0
+pytest==8.0.0
+pytest-mock==3.12.0

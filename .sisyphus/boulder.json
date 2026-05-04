@@ -54,6 +54,15 @@
       "agent": "Sisyphus-Junior",
       "category": "visual-engineering",
       "updated_at": "2026-05-04T19:34:27.929Z"
+    },
+    "todo:15": {
+      "task_key": "todo:15",
+      "task_label": "15",
+      "task_title": "**Historical data fetch from Binance REST API** [TDD]",
+      "session_id": "ses_20b7c9833ffehtKwKBbcnabA7k",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-04T19:50:33.933Z"
     }
   }
 }

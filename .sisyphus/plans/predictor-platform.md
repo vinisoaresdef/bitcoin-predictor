@@ -1180,7 +1180,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
   **Commit**: YES (groups with Tasks 9-14)
   - Message: `feat(frontend): candlestick chart with real-time updates`
 
-- [ ] 15. **Historical data fetch from Binance REST API** [TDD]
+- [x] 15. **Historical data fetch from Binance REST API** [TDD]
 
   **What to do**:
   - Create `training/fetch_data.py`:
