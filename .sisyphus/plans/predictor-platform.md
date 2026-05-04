@@ -1325,7 +1325,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 17. **Label creation + walk-forward validation** [TDD]
+- [x] 17. **Label creation + walk-forward validation** [TDD]
 
   **What to do**:
   - Create `training/labels.py` and `training/validate.py`:

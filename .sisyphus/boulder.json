@@ -72,6 +72,15 @@
       "agent": "Sisyphus-Junior",
       "category": "unspecified-high",
       "updated_at": "2026-05-04T20:02:55.098Z"
+    },
+    "todo:17": {
+      "task_key": "todo:17",
+      "task_label": "17",
+      "task_title": "**Label creation + walk-forward validation** [TDD]",
+      "session_id": "ses_20b683671ffeH2p10igDAnhwhG",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-04T20:14:38.556Z"
     }
   }
 }
