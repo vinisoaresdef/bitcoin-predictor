@@ -81,6 +81,15 @@
       "agent": "Sisyphus-Junior",
       "category": "unspecified-high",
       "updated_at": "2026-05-04T20:14:38.556Z"
+    },
+    "todo:18": {
+      "task_key": "todo:18",
+      "task_label": "18",
+      "task_title": "**LightGBM training + serialization + metrics** [TDD]",
+      "session_id": "ses_20b5e514dffev6x1c2LoB3q58r",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-04T20:24:59.852Z"
     }
   }
 }

@@ -1389,7 +1389,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 18. **LightGBM training + serialization + metrics** [TDD]
+- [x] 18. **LightGBM training + serialization + metrics** [TDD]
 
   **What to do**:
   - Create `training/train.py`:
