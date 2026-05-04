@@ -45,6 +45,15 @@
       "agent": "Sisyphus-Junior",
       "category": "visual-engineering",
       "updated_at": "2026-05-04T19:10:52.189Z"
+    },
+    "todo:12": {
+      "task_key": "todo:12",
+      "task_label": "12",
+      "task_title": "**Real-time chart update loop** [Playwright TDD]",
+      "session_id": "ses_20b8edc3cffebDwscX1ygdHWBZ",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-05-04T19:34:27.929Z"
     }
   }
 }

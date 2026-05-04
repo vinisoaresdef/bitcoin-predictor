@@ -998,7 +998,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 12. **Real-time chart update loop** [Playwright TDD]
+- [x] 12. **Real-time chart update loop** [Playwright TDD]
 
   **What to do**:
   - Update `frontend/js/chart.js` or create `frontend/js/app.js`:
@@ -1064,7 +1064,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 13. **Startup state and status indicators** [Playwright TDD]
+- [x] 13. **Startup state and status indicators** [Playwright TDD]
 
   **What to do**:
   - Update `frontend/js/app.js`:
@@ -1124,7 +1124,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 14. **Real SMA(20) line series rendering** [Playwright TDD]
+- [x] 14. **Real SMA(20) line series rendering** [Playwright TDD]
 
   **What to do**:
   - Update `frontend/js/app.js`:
