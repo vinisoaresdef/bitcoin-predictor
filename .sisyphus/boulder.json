@@ -63,6 +63,15 @@
       "agent": "Sisyphus-Junior",
       "category": "unspecified-high",
       "updated_at": "2026-05-04T19:50:33.933Z"
+    },
+    "todo:16": {
+      "task_key": "todo:16",
+      "task_label": "16",
+      "task_title": "**Feature engineering pipeline (22 features)** [TDD]",
+      "session_id": "ses_20b74295bffe4JizdjDFzVjNI6",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-04T20:02:55.098Z"
     }
   }
 }

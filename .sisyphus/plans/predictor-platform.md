@@ -1247,7 +1247,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 16. **Feature engineering pipeline (22 features)** [TDD]
+- [x] 16. **Feature engineering pipeline (22 features)** [TDD]
 
   **What to do**:
   - Create `training/features.py`:
