@@ -1,0 +1,4 @@
+=== RUN   TestServeIndexHTML
+--- PASS: TestServeIndexHTML (0.01s)
+PASS
+ok  	predictor/internal/server	0.013s

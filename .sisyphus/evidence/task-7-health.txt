@@ -1,0 +1,4 @@
+=== RUN   TestHealthEndpoint
+--- PASS: TestHealthEndpoint (0.00s)
+PASS
+ok  	predictor/internal/server	0.007s

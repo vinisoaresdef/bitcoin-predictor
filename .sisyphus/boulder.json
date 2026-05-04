@@ -1,0 +1,32 @@
+{
+  "active_plan": "/home/vinicius-soares/Desktop/Repositórios/BitCoin/Predictor/.sisyphus/plans/predictor-platform.md",
+  "started_at": "2026-05-04T18:03:04.807Z",
+  "session_ids": [
+    "ses_20bfe0b4fffemNbcevEACsdzri"
+  ],
+  "session_origins": {
+    "ses_20bfe0b4fffemNbcevEACsdzri": "direct"
+  },
+  "plan_name": "predictor-platform",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "**Install Go and verify prerequisites**",
+      "session_id": "ses_20bd57c22ffepWXjGtP0H0yB0Y",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-04T18:12:56.175Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "**Binance WebSocket client** [TDD]",
+      "session_id": "ses_20bccd2ceffexq7UL3e7KPb9fo",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-04T18:22:59.606Z"
+    }
+  }
+}

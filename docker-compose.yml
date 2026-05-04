@@ -1,0 +1,31 @@
+services:
+  go-backend:
+    build:
+      context: ./go-backend
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT_BACKEND}:8080"
+    environment:
+      - PORT=${PORT_BACKEND}
+      - BINANCE_WS_URL=${BINANCE_WS_URL}
+      - BINANCE_REST_URL=${BINANCE_REST_URL}
+      - ML_SERVICE_URL=http://ml-service:8000
+    networks:
+      - predictor-net
+    restart: unless-stopped
+
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT_ML}:8000"
+    environment:
+      - PORT=${PORT_ML}
+    networks:
+      - predictor-net
+    restart: unless-stopped
+
+networks:
+  predictor-net:
+    driver: bridge

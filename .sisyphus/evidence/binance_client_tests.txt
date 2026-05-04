@@ -1,0 +1,30 @@
+=== RUN   TestParseKlineMessage
+=== RUN   TestParseKlineMessage/valid_kline_message
+=== RUN   TestParseKlineMessage/invalid_json
+=== RUN   TestParseKlineMessage/wrong_event_type
+--- PASS: TestParseKlineMessage (0.00s)
+    --- PASS: TestParseKlineMessage/valid_kline_message (0.00s)
+    --- PASS: TestParseKlineMessage/invalid_json (0.00s)
+    --- PASS: TestParseKlineMessage/wrong_event_type (0.00s)
+=== RUN   TestParseKlineMessage_MissingFields
+=== RUN   TestParseKlineMessage_MissingFields/missing_open_price
+=== RUN   TestParseKlineMessage_MissingFields/missing_high_price
+=== RUN   TestParseKlineMessage_MissingFields/missing_low_price
+=== RUN   TestParseKlineMessage_MissingFields/missing_close_price
+=== RUN   TestParseKlineMessage_MissingFields/missing_volume
+--- PASS: TestParseKlineMessage_MissingFields (0.00s)
+    --- PASS: TestParseKlineMessage_MissingFields/missing_open_price (0.00s)
+    --- PASS: TestParseKlineMessage_MissingFields/missing_high_price (0.00s)
+    --- PASS: TestParseKlineMessage_MissingFields/missing_low_price (0.00s)
+    --- PASS: TestParseKlineMessage_MissingFields/missing_close_price (0.00s)
+    --- PASS: TestParseKlineMessage_MissingFields/missing_volume (0.00s)
+=== RUN   TestDeduplicateByCloseTime
+--- PASS: TestDeduplicateByCloseTime (0.00s)
+=== RUN   TestReconnectBackoff
+--- PASS: TestReconnectBackoff (0.00s)
+=== RUN   TestClient_StartStop
+--- PASS: TestClient_StartStop (0.00s)
+=== RUN   TestParseKlineMessage_ZeroVolume
+--- PASS: TestParseKlineMessage_ZeroVolume (0.00s)
+PASS
+ok  	predictor/internal/binance	(cached)
