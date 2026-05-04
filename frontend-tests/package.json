@@ -1,0 +1,16 @@
+{
+  "name": "predictor-frontend-tests",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "serve": "npx http-server ../frontend -p 8080 --cors"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "http-server": "^14.1.1"
+  },
+  "dependencies": {
+    "ws": "^8.20.0"
+  }
+}

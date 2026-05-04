@@ -1,5 +1,0 @@
-=== RUN   TestGracefulShutdown
-HTTP server starting on :0
---- PASS: TestGracefulShutdown (0.10s)
-PASS
-ok  	predictor/internal/server	0.105s

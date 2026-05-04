@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Client Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        .log { margin: 5px 0; padding: 5px; background: #333; border-radius: 3px; }
+        .success { background: #2d5a27; }
+        .error { background: #5a2727; }
+        button { margin: 5px; padding: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Client Test</h1>
+    <button onclick="connect()">Connect</button>
+    <button onclick="disconnect()">Disconnect</button>
+    <button onclick="sendTestKline()">Send Test Kline (Mock)</button>
+    <div id="logs"></div>
+
+    <script src="/js/ws-client.js"></script>
+    <script>
+        const logs = document.getElementById('logs');
+
+        function log(message, type = '') {
+            const div = document.createElement('div');
+            div.className = 'log ' + type;
+            div.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+            logs.appendChild(div);
+        }
+
+        WSClient.onStatus((status) => {
+            log('Status: ' + JSON.stringify(status), 'success');
+        });
+
+        WSClient.onCandle((candle) => {
+            log('Candle received: ' + JSON.stringify(candle), 'success');
+        });
+
+        WSClient.onPrediction((prediction) => {
+            log('Prediction: ' + JSON.stringify(prediction));
+        });
+
+        WSClient.onIndicator((indicator) => {
+            log('Indicator: ' + JSON.stringify(indicator));
+        });
+
+        document.addEventListener('ws-reconnected', (e) => {
+            log('Reconnected event fired!', 'success');
+        });
+
+        function connect() {
+            log('Connecting to ws://localhost:8080/ws...');
+            WSClient.connect('ws://localhost:8080/ws');
+        }
+
+        function disconnect() {
+            log('Disconnecting...');
+            WSClient.disconnect();
+        }
+
+        function sendTestKline() {
+            const testCandle = {
+                type: 'kline',
+                candle: {
+                    symbol: 'BTCUSDT',
+                    interval: '1s',
+                    open: 50000.00,
+                    high: 50100.00,
+                    low: 49900.00,
+                    close: 50050.00,
+                    volume: 1.5,
+                    close_time: new Date().toISOString(),
+                    timestamp: new Date().toISOString()
+                }
+            };
+            
+            if (window.testWS && window.testWS.readyState === WebSocket.OPEN) {
+                window.testWS.send(JSON.stringify(testCandle));
+                log('Sent test kline message');
+            } else {
+                log('No mock WebSocket connection available', 'error');
+            }
+        }
+
+        // Mock WebSocket for testing
+        window.testWS = null;
+        
+        log('WebSocket Client loaded. Click "Connect" to test.');
+        log('Client exports: connect, disconnect, onCandle, onStatus, onPrediction, onIndicator');
+        log('Configuration: Default URL = ws://localhost:8080/ws');
+    </script>
+</body>
+</html>

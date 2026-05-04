@@ -799,7 +799,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
   **Commit**: YES (groups with Tasks 4-8)
   - Message: `feat(backend): Binance websocket streaming and internal broadcast`
 
-- [ ] 9. **HTML page skeleton + dark theme CSS + status overlay** [Playwright TDD]
+- [x] 9. **HTML page skeleton + dark theme CSS + status overlay** [Playwright TDD]
 
   **What to do**:
   - Create `frontend/index.html`:
@@ -869,7 +869,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 10. **TradingView chart initialization** [Playwright TDD]
+- [x] 10. **TradingView chart initialization** [Playwright TDD]
 
   **What to do**:
   - Create `frontend/js/chart.js`:
@@ -926,7 +926,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 11. **Frontend WebSocket client** [Playwright TDD]
+- [x] 11. **Frontend WebSocket client** [Playwright TDD]
 
   **What to do**:
   - Create `frontend/js/ws-client.js`:

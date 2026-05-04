@@ -36,6 +36,15 @@
       "agent": "Sisyphus-Junior",
       "category": "unspecified-high",
       "updated_at": "2026-05-04T18:46:47.553Z"
+    },
+    "todo:9": {
+      "task_key": "todo:9",
+      "task_label": "9",
+      "task_title": "**HTML page skeleton + dark theme CSS + status overlay** [Playwright TDD]",
+      "session_id": "ses_20bae2787ffeO4ueJO33XZglOU",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-05-04T19:10:52.189Z"
     }
   }
 }
