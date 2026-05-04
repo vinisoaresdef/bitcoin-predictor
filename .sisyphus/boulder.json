@@ -99,6 +99,15 @@
       "agent": "Sisyphus-Junior",
       "category": "unspecified-high",
       "updated_at": "2026-05-04T20:55:40.669Z"
+    },
+    "todo:22": {
+      "task_key": "todo:22",
+      "task_label": "22",
+      "task_title": "**/predict endpoint (validation, inference, threshold)** [TDD]",
+      "session_id": "ses_20b3508f3ffeO2DkHxBfzQOs7I",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-04T21:06:12.817Z"
     }
   }
 }

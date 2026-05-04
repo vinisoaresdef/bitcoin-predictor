@@ -1668,7 +1668,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 22. **/predict endpoint (validation, inference, threshold)** [TDD]
+- [x] 22. **/predict endpoint (validation, inference, threshold)** [TDD]
 
   **What to do**:
   - Create `ml-service/app/routes.py` (or update `main.py`):
