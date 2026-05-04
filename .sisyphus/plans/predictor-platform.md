@@ -1751,7 +1751,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 23. **Predicted candle construction from direction and confidence** [TDD — included in Task 22 tests]
+- [x] 23. **Predicted candle construction from direction and confidence** [TDD — included in Task 22 tests]
 
   **What to do**:
   - This is part of Task 22 — the `build_predicted_candle()` function in `indicators.py`
@@ -1777,7 +1777,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 24. **Error handling + graceful degradation (422, 503, timeout)** [TDD]
+- [x] 24. **Error handling + graceful degradation (422, 503, timeout)** [TDD]
 
   **What to do**:
   - Update `ml-service/app/main.py`:

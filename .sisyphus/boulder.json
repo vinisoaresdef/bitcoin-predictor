@@ -108,6 +108,15 @@
       "agent": "Sisyphus-Junior",
       "category": "unspecified-high",
       "updated_at": "2026-05-04T21:06:12.817Z"
+    },
+    "todo:23": {
+      "task_key": "todo:23",
+      "task_label": "23",
+      "task_title": "**Predicted candle construction from direction and confidence** [TDD — included in Task 22 tests]",
+      "session_id": "ses_20b2ef355ffeyVXVkSjf8vVTVa",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-04T21:09:45.568Z"
     }
   }
 }

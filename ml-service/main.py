@@ -4,8 +4,11 @@ BTC Predictor ML Service
 FastAPI-based ML inference service for Bitcoin price prediction.
 """
 
+import asyncio
 import logging
+import traceback
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -13,10 +16,10 @@ import joblib
 import numpy as np
 import pandas as pd
 import pandas_ta_classic as ta
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 from app.schemas import CandleData
 from ta import compute_all_indicators
@@ -29,6 +32,17 @@ logger = logging.getLogger(__name__)
 
 MODEL_PATH = Path("models/model.joblib")
 MODEL_VERSION = "1.0.0"
+REQUEST_TIMEOUT_SECONDS = 30
+
+
+class ValidationError(Exception):
+    """Custom validation error for input validation failures."""
+    pass
+
+
+class ModelUnavailableError(Exception):
+    """Custom error for model-related failures."""
+    pass
 
 
 @asynccontextmanager
@@ -54,6 +68,7 @@ async def lifespan(app: FastAPI):
             app.state.model = None
     except Exception as e:
         logger.error(f"Failed to load model: {e}")
+        logger.error(traceback.format_exc())
         app.state.model = None
     
     yield
@@ -94,6 +109,22 @@ class TAResponse(BaseModel):
     atr: Optional[float] = None
 
 
+class CandleInput(BaseModel):
+    """Input model for individual candle validation."""
+    timestamp: datetime
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+    
+    @validator('open', 'high', 'low', 'close', 'volume')
+    def validate_positive(cls, v):
+        if v <= 0:
+            raise ValueError(f"Value must be positive, got {v}")
+        return v
+
+
 class PredictRequest(BaseModel):
     candles: List[CandleData] = Field(..., min_length=60, max_length=60)
 
@@ -102,6 +133,103 @@ class PredictResponse(BaseModel):
     direction: str = Field(..., pattern="^(UP|DOWN|UNCERTAIN)$")
     confidence: float = Field(..., ge=0.0, le=1.0)
     probabilities: List[float] = Field(..., min_length=3, max_length=3)
+
+
+def validate_candle_fields(candles: List[CandleData]) -> None:
+    """Validate that all candles have required fields."""
+    required_fields = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
+    
+    for i, candle in enumerate(candles):
+        for field in required_fields:
+            if getattr(candle, field, None) is None:
+                raise ValidationError(
+                    f"Candle at index {i} is missing required field: {field}"
+                )
+
+
+def validate_positive_values(candles: List[CandleData]) -> None:
+    """Validate that all numeric values are positive."""
+    numeric_fields = ['open', 'high', 'low', 'close', 'volume']
+    
+    for i, candle in enumerate(candles):
+        for field in numeric_fields:
+            value = getattr(candle, field)
+            if value <= 0:
+                raise ValidationError(
+                    f"Candle at index {i} has non-positive {field}: {value}"
+                )
+
+
+def validate_chronological_order(candles: List[CandleData]) -> None:
+    """Validate that timestamps are in chronological order."""
+    if len(candles) < 2:
+        return
+    
+    for i in range(1, len(candles)):
+        prev_time = candles[i - 1].timestamp
+        curr_time = candles[i].timestamp
+        
+        if curr_time <= prev_time:
+            raise ValidationError(
+                f"Timestamps not in chronological order at index {i}: "
+                f"{curr_time} is not after {prev_time}"
+            )
+
+
+def validate_all_candles(candles: List[CandleData]) -> None:
+    """Run all candle validation checks."""
+    if len(candles) != 60:
+        raise ValidationError(f"Exactly 60 candles required, got {len(candles)}")
+    
+    validate_candle_fields(candles)
+    validate_positive_values(candles)
+    validate_chronological_order(candles)
+
+
+@app.exception_handler(ValidationError)
+async def validation_error_handler(request: Request, exc: ValidationError):
+    """Handle validation errors with 422 status."""
+    logger.warning(f"Validation error: {exc}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": str(exc)}
+    )
+
+
+@app.exception_handler(ModelUnavailableError)
+async def model_unavailable_handler(request: Request, exc: ModelUnavailableError):
+    """Handle model unavailability with 503 status."""
+    logger.error(f"Model unavailable: {exc}")
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Model not loaded or unavailable"}
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Handle HTTP exceptions with proper logging."""
+    if exc.status_code >= 500:
+        logger.error(f"HTTP {exc.status_code} error: {exc.detail}")
+    elif exc.status_code >= 400:
+        logger.warning(f"HTTP {exc.status_code} error: {exc.detail}")
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": str(exc.detail)}
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """Handle all unhandled exceptions with 500 status."""
+    logger.error(f"Unhandled exception: {exc}")
+    logger.error(traceback.format_exc())
+    
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"}
+    )
 
 
 @app.get("/health")
@@ -228,6 +356,62 @@ def compute_features_from_candles(candles: List[CandleData]) -> pd.DataFrame:
     return features
 
 
+async def run_prediction_with_timeout(
+    candles: List[CandleData]
+) -> PredictResponse:
+    """Run prediction with 30-second timeout."""
+    
+    def _do_prediction():
+        features_df = compute_features_from_candles(candles)
+        
+        if len(features_df) == 0:
+            raise ValidationError("Insufficient valid data to compute features")
+        
+        latest_features = features_df.iloc[-1:].values
+        
+        model = app.state.model
+        
+        try:
+            probabilities = model.predict_proba(latest_features)[0]
+        except Exception as e:
+            logger.error(f"Model inference failed: {e}")
+            logger.error(traceback.format_exc())
+            raise ModelUnavailableError(f"Model inference failed: {e}")
+        
+        up_prob = probabilities[0]
+        down_prob = probabilities[1]
+        threshold = 0.55
+        
+        if up_prob > threshold:
+            direction = "UP"
+            confidence = float(up_prob)
+        elif down_prob > threshold:
+            direction = "DOWN"
+            confidence = float(down_prob)
+        else:
+            direction = "UNCERTAIN"
+            confidence = float(max(up_prob, down_prob, probabilities[2]))
+        
+        return PredictResponse(
+            direction=direction,
+            confidence=confidence,
+            probabilities=[float(p) for p in probabilities]
+        )
+    
+    loop = asyncio.get_event_loop()
+    
+    try:
+        return await asyncio.wait_for(
+            loop.run_in_executor(None, _do_prediction),
+            timeout=REQUEST_TIMEOUT_SECONDS
+        )
+    except asyncio.TimeoutError:
+        logger.error(f"Prediction timed out after {REQUEST_TIMEOUT_SECONDS} seconds")
+        raise ModelUnavailableError(
+            f"Request timed out after {REQUEST_TIMEOUT_SECONDS} seconds"
+        )
+
+
 @app.post("/predict", response_model=PredictResponse)
 async def predict(request: PredictRequest):
     """Predict price direction from candle data."""
@@ -243,38 +427,18 @@ async def predict(request: PredictRequest):
             detail="Model not loaded or unavailable"
         )
     
-    features_df = compute_features_from_candles(request.candles)
+    validate_all_candles(request.candles)
     
-    if len(features_df) == 0:
-        raise HTTPException(
-            status_code=422,
-            detail="Insufficient valid data to compute features"
-        )
-    
-    latest_features = features_df.iloc[-1:].values
-    
-    model = app.state.model
-    probabilities = model.predict_proba(latest_features)[0]
-    
-    up_prob = probabilities[0]
-    down_prob = probabilities[1]
-    threshold = 0.55
-    
-    if up_prob > threshold:
-        direction = "UP"
-        confidence = float(up_prob)
-    elif down_prob > threshold:
-        direction = "DOWN"
-        confidence = float(down_prob)
-    else:
-        direction = "UNCERTAIN"
-        confidence = float(max(up_prob, down_prob, probabilities[2]))
-    
-    return PredictResponse(
-        direction=direction,
-        confidence=confidence,
-        probabilities=[float(p) for p in probabilities]
-    )
+    try:
+        return await run_prediction_with_timeout(request.candles)
+    except ValidationError:
+        raise
+    except ModelUnavailableError:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error during prediction: {e}")
+        logger.error(traceback.format_exc())
+        raise
 
 
 if __name__ == "__main__":

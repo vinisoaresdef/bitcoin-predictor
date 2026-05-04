@@ -159,12 +159,72 @@ class TestPredictEndpoint:
     def test_predict_model_not_loaded(self):
         """Test that /predict returns 503 when model is not loaded."""
         mock_candles = self._create_mock_candles(60)
-        
+
         with TestClient(app) as client:
             with patch.object(app.state, 'model', None):
                 response = client.post("/predict", json={"candles": mock_candles})
-        
+
         assert response.status_code == 503
         data = response.json()
         assert "detail" in data
         assert "model" in data["detail"].lower() or "unavailable" in data["detail"].lower()
+
+    def test_predict_returns_candle_data(self):
+        """Test that /predict returns predicted_candle with valid OHLCV."""
+        mock_candles = self._create_mock_candles(60)
+
+        # Mock the model to return predictable probabilities
+        mock_model = MagicMock()
+        # predict_proba returns probabilities for [UP, DOWN, UNCERTAIN]
+        # Setting UP to have highest probability (0.72 > 0.55 threshold)
+        mock_model.predict_proba.return_value = [[0.72, 0.15, 0.13]]
+        mock_model.feature_names_ = [
+            'returns', 'log_returns', 'high_low_range', 'body_size', 'upper_shadow',
+            'lower_shadow', 'volume', 'volume_change', 'sma_5', 'sma_10', 'sma_20',
+            'sma_5_distance', 'sma_10_distance', 'sma_20_distance', 'rsi',
+            'macd_histogram', 'bb_percent_b', 'atr', 'price_momentum',
+            'price_acceleration', 'hour_sin', 'day_of_week_sin'
+        ]
+
+        with TestClient(app) as client:
+            with patch.object(app.state, 'model', mock_model):
+                response = client.post("/predict", json={"candles": mock_candles})
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify predicted_candle exists
+        assert "predicted_candle" in data
+        predicted_candle = data["predicted_candle"]
+
+        # Verify OHLCV fields exist
+        assert "timestamp" in predicted_candle
+        assert "open" in predicted_candle
+        assert "high" in predicted_candle
+        assert "low" in predicted_candle
+        assert "close" in predicted_candle
+        assert "volume" in predicted_candle
+
+        # Verify OHLCV values are valid numbers
+        assert isinstance(predicted_candle["timestamp"], int)
+        assert isinstance(predicted_candle["open"], float)
+        assert isinstance(predicted_candle["high"], float)
+        assert isinstance(predicted_candle["low"], float)
+        assert isinstance(predicted_candle["close"], float)
+        assert isinstance(predicted_candle["volume"], float)
+
+        # Verify price relationships (high >= open, close >= low)
+        assert predicted_candle["high"] >= predicted_candle["open"]
+        assert predicted_candle["high"] >= predicted_candle["close"]
+        assert predicted_candle["low"] <= predicted_candle["open"]
+        assert predicted_candle["low"] <= predicted_candle["close"]
+        assert predicted_candle["high"] >= predicted_candle["low"]
+
+        # For UP direction: close should be higher than open
+        assert data["direction"] == "UP"
+        assert predicted_candle["close"] > predicted_candle["open"]
+
+        # Verify timestamp is 30 seconds after last candle's timestamp
+        last_candle_timestamp = int(datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc).timestamp()) + 59
+        expected_timestamp = last_candle_timestamp + 30
+        assert predicted_candle["timestamp"] == expected_timestamp
