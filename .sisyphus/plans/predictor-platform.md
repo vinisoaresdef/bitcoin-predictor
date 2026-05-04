@@ -1458,7 +1458,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
   **Commit**: YES (groups with Tasks 15-18)
   - Message: `feat(training): historical data fetch and LightGBM model training`
 
-- [ ] 19. **FastAPI project setup + Dockerfile + uvicorn config** [TDD]
+- [x] 19. **FastAPI project setup + Dockerfile + uvicorn config** [TDD]
 
   **What to do**:
   - Create `ml-service/app/main.py`:
@@ -1527,7 +1527,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 20. **Model loading at startup + /health with model_loaded flag** [TDD]
+- [x] 20. **Model loading at startup + /health with model_loaded flag** [TDD]
 
   **What to do**:
   - Create `ml-service/app/model.py`:
@@ -1593,7 +1593,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 21. **TA computation (indicators via pandas-ta-classic)** [TDD]
+- [x] 21. **TA computation (indicators via pandas-ta-classic)** [TDD]
 
   **What to do**:
   - Create `ml-service/app/indicators.py`:

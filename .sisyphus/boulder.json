@@ -90,6 +90,15 @@
       "agent": "Sisyphus-Junior",
       "category": "unspecified-high",
       "updated_at": "2026-05-04T20:24:59.852Z"
+    },
+    "todo:19": {
+      "task_key": "todo:19",
+      "task_label": "19",
+      "task_title": "**FastAPI project setup + Dockerfile + uvicorn config** [TDD]",
+      "session_id": "ses_20b54b087ffebIrD7D034ImWeD",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-04T20:55:40.669Z"
     }
   }
 }
