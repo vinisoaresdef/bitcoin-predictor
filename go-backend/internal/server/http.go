@@ -4,14 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
+
+	"predictor/internal/metrics"
 )
 
 // HealthResponse represents the health endpoint response
@@ -51,30 +55,51 @@ type Config struct {
 
 // HTTPServer wraps http.Server with graceful shutdown capabilities
 type HTTPServer struct {
-	config    Config
-	server    *http.Server
-	startTime time.Time
-	mu        sync.RWMutex
+	config       Config
+	server       *http.Server
+	startTime    time.Time
+	mu           sync.RWMutex
+	activeConns  atomic.Int64
+	metrics      *metrics.Collector
+	metricsToken string
 }
 
 // NewHTTPServer creates a new HTTP server instance
 func NewHTTPServer(cfg Config) *HTTPServer {
 	s := &HTTPServer{
-		config:    cfg,
-		startTime: time.Now(),
+		config:       cfg,
+		startTime:    time.Now(),
+		metrics:      metrics.NewCollector(time.Second),
+		metricsToken: os.Getenv("METRICS_TOKEN"),
 	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", s.handleHealth)
 	mux.HandleFunc("/ws", s.handleWebSocket)
+	mux.HandleFunc("/api/internal/metrics", s.handleMetrics)
 	mux.HandleFunc("/", s.handleStatic)
 
 	s.server = &http.Server{
 		Addr:    cfg.Addr,
 		Handler: mux,
+		// ConnState tracks open connections with zero per-request overhead.
+		ConnState: s.trackConnState,
 	}
 
 	return s
+}
+
+// trackConnState maintains the open-connection counter via the net/http
+// connection lifecycle. New connections increment; closed or hijacked
+// (e.g. WebSocket upgrades) decrement. Active/Idle transitions don't change
+// the count, so the value reflects currently-open HTTP connections.
+func (s *HTTPServer) trackConnState(_ net.Conn, state http.ConnState) {
+	switch state {
+	case http.StateNew:
+		s.activeConns.Add(1)
+	case http.StateHijacked, http.StateClosed:
+		s.activeConns.Add(-1)
+	}
 }
 
 // handler returns the http.Handler for testing
@@ -162,6 +187,71 @@ func (s *HTTPServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
+}
+
+// MetricsResponse is the JSON returned by the internal telemetry endpoint.
+type MetricsResponse struct {
+	SystemHardware   metrics.SystemHardware   `json:"system_hardware"`
+	RuntimeInternals metrics.RuntimeInternals `json:"runtime_internals"`
+	ApplicationIO    ApplicationIO            `json:"application_io"`
+}
+
+// ApplicationIO holds application-level I/O telemetry owned by the HTTP server.
+type ApplicationIO struct {
+	ActiveHTTPConnections int64   `json:"active_http_connections"`
+	UptimeSeconds         float64 `json:"uptime_seconds"`
+}
+
+// handleMetrics serves deep telemetry at /api/internal/metrics.
+//
+// System and runtime groups come from the cached metrics.Collector (so a burst
+// of requests never floods /proc or repeatedly stops the world); the
+// application_io group is filled from the server's own live counters.
+//
+// If the METRICS_TOKEN environment variable is set, the request must present a
+// matching token via the Authorization: Bearer <token> header or the
+// X-Metrics-Token header. When unset, the endpoint is open (intended to be
+// reachable only from inside the cluster / behind an ingress rule).
+func (s *HTTPServer) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if !s.authorizeMetrics(r) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	system, runtimeStats := s.metrics.Collect()
+
+	response := MetricsResponse{
+		SystemHardware:   system,
+		RuntimeInternals: runtimeStats,
+		ApplicationIO: ApplicationIO{
+			ActiveHTTPConnections: s.activeConns.Load(),
+			UptimeSeconds:         time.Since(s.startTime).Seconds(),
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+// authorizeMetrics returns true if the request is allowed to read metrics.
+func (s *HTTPServer) authorizeMetrics(r *http.Request) bool {
+	if s.metricsToken == "" {
+		return true
+	}
+	if h := r.Header.Get("X-Metrics-Token"); h == s.metricsToken {
+		return true
+	}
+	if h := r.Header.Get("Authorization"); strings.TrimPrefix(h, "Bearer ") == s.metricsToken {
+		return true
+	}
+	return false
 }
 
 // handleWebSocket upgrades HTTP connections to WebSocket
