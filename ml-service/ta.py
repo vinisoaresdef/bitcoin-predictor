@@ -7,7 +7,7 @@ Provides functions to compute technical indicators from candlestick data.
 from typing import Dict, List, Optional
 
 import pandas as pd
-import pandas_ta_classic as ta
+import pandas_ta as ta
 
 from app.schemas import CandleData
 
@@ -95,8 +95,9 @@ def compute_all_indicators(candles: List[CandleData]) -> Dict[str, Optional[floa
     if len(candles) >= 35:
         macd_result = ta.macd(df["close"], fast=12, slow=26, signal=9)
         if macd_result is not None:
-            histogram_col = "MACDh_12_26_9"
-            if histogram_col in macd_result.columns:
+            macd_cols = macd_result.columns.tolist()
+            histogram_col = next((c for c in macd_cols if c.startswith("MACDh_")), None)
+            if histogram_col and histogram_col in macd_result.columns:
                 hist_series = macd_result[histogram_col].dropna()
                 if len(hist_series) > 0:
                     result["macd_histogram"] = float(hist_series.iloc[-1])

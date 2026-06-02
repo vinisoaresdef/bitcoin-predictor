@@ -51,6 +51,7 @@ func TestParseKlineMessage(t *testing.T) {
 				Volume:    100.5,
 				CloseTime: time.UnixMilli(1234567889999),
 				Timestamp: time.UnixMilli(1234567890000),
+				IsFinal:   false,
 			},
 			wantErr: false,
 		},
@@ -230,55 +231,30 @@ func TestDeduplicateByCloseTime(t *testing.T) {
 	config := DefaultConfig()
 	client := NewClient(config, candleChan)
 
-	candle1 := schemas.Candle{
-		Symbol:    "BTCUSDT",
-		Interval:  "1s",
-		Open:      50000.00,
-		High:      51000.00,
-		Low:       49000.00,
-		Close:     50500.00,
-		Volume:    100.5,
-		CloseTime: time.UnixMilli(1234567889999),
-		Timestamp: time.UnixMilli(1234567890000),
-	}
+	ctA := time.UnixMilli(1234567889999)
+	ctB := time.UnixMilli(1234567899999)
+	ts := time.UnixMilli(1234567890000)
 
-	candle2 := schemas.Candle{
-		Symbol:    "BTCUSDT",
-		Interval:  "1s",
-		Open:      50500.00,
-		High:      51500.00,
-		Low:       50000.00,
-		Close:     51000.00,
-		Volume:    200.0,
-		CloseTime: time.UnixMilli(1234567889999), // Same close_time as candle1
-		Timestamp: time.UnixMilli(1234567890000),
-	}
+	firstPartial := schemas.Candle{Symbol: "BTCUSDT", Interval: "1s", Open: 50000, High: 51000, Low: 49000, Close: 50500, Volume: 100.5, CloseTime: ctA, Timestamp: ts, IsFinal: false}
+	secondPartialSameCT := schemas.Candle{Symbol: "BTCUSDT", Interval: "1s", Open: 50500, High: 51500, Low: 50000, Close: 51000, Volume: 200, CloseTime: ctA, Timestamp: ts, IsFinal: false}
+	differentCloseTime := schemas.Candle{Symbol: "BTCUSDT", Interval: "1s", Open: 51000, High: 52000, Low: 50500, Close: 51500, Volume: 150, CloseTime: ctB, Timestamp: time.UnixMilli(1234567900000), IsFinal: false}
+	finalForCT_A := schemas.Candle{Symbol: "BTCUSDT", Interval: "1s", Open: 51000, High: 52000, Low: 50500, Close: 51500, Volume: 150, CloseTime: ctA, Timestamp: ts, IsFinal: true}
+	afterFinalForCT_A := schemas.Candle{Symbol: "BTCUSDT", Interval: "1s", Open: 52000, High: 53000, Low: 51000, Close: 52500, Volume: 300, CloseTime: ctA, Timestamp: time.UnixMilli(1234567891000), IsFinal: false}
 
-	candle3 := schemas.Candle{
-		Symbol:    "BTCUSDT",
-		Interval:  "1s",
-		Open:      51000.00,
-		High:      52000.00,
-		Low:       50500.00,
-		Close:     51500.00,
-		Volume:    150.0,
-		CloseTime: time.UnixMilli(1234567899999), // Different close_time
-		Timestamp: time.UnixMilli(1234567900000),
+	if client.isDuplicate(firstPartial) {
+		t.Error("first partial candle should not be duplicate")
 	}
-
-	// First candle should not be duplicate
-	if client.isDuplicate(candle1) {
-		t.Error("First candle should not be duplicate")
+	if client.isDuplicate(secondPartialSameCT) {
+		t.Error("partial update with same close_time should flow through")
 	}
-
-	// Second candle with same close_time should be duplicate
-	if !client.isDuplicate(candle2) {
-		t.Error("Second candle with same close_time should be duplicate")
+	if client.isDuplicate(differentCloseTime) {
+		t.Error("candle with different close_time should not be duplicate")
 	}
-
-	// Third candle with different close_time should not be duplicate
-	if client.isDuplicate(candle3) {
-		t.Error("Third candle with different close_time should not be duplicate")
+	if client.isDuplicate(finalForCT_A) {
+		t.Error("first final candle should not be duplicate")
+	}
+	if !client.isDuplicate(afterFinalForCT_A) {
+		t.Error("candle after final for same close_time should be duplicate")
 	}
 }
 

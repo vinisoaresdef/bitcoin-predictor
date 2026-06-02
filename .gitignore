@@ -26,6 +26,12 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
 
 # IDE
 .vscode/
@@ -37,3 +43,22 @@ wheels/
 # OS
 .DS_Store
 Thumbs.db
+
+# Go
+go1.*.tar.gz
+# Local Go toolchain installed inside the repo
+/go/
+# Compiled backend binary
+go-backend/predictor
+
+# Models (large binary files)
+models/*.joblib
+
+# Node
+node_modules/
+
+# Playwright test artifacts
+frontend-tests/test-results/
+frontend/tests/test-results/
+playwright-report/
+.last-run.json

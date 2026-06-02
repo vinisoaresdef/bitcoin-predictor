@@ -8,18 +8,45 @@
     <script src="https://unpkg.com/lightweight-charts@5.2.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
-    <div id="header">
-        <h1>BTCUSDT</h1>
-        <span id="timeframe">1s</span>
+    <div id="sidebar">
+        <button id="sidebar-toggle" aria-label="Toggle sidebar">&#9776;</button>
+        <div id="countdown-card">
+            <div class="countdown-label">Next Candle</div>
+            <div id="countdown-timer" aria-live="polite">--:--</div>
+            <div id="countdown-timeframe">1s</div>
+        </div>
+        <div id="prediction-toggle-card">
+            <div class="toggle-label">Pattern Predictions</div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="prediction-toggle" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
     </div>
-    <div id="chart-container"></div>
+    <div id="main-content">
+        <div id="header">
+            <div id="tab-bar">
+                <div id="tabs-container"></div>
+                <button id="add-ticker-btn" title="Add ticker">+</button>
+            </div>
+            <select id="timeframe-selector" aria-label="Select timeframe">
+                <option value="1s" selected>1s</option>
+                <option value="1m">1m</option>
+                <option value="5m">5m</option>
+            </select>
+            <button id="center-chart-btn" title="Center last candle">&#10226;</button>
+        </div>
+        <div id="chart-container"></div>
+    </div>
     <div id="loader-overlay">
         <div class="loader-spinner"></div>
         <span class="loader-text">Connecting...</span>
     </div>
+    <div id="prediction-confidence"></div>
     <div id="status-bar" class="status-connecting">
         <span id="status-text">Connecting...</span>
     </div>
+    <script src="/js/patterns.js"></script>
     <script src="/js/chart.js"></script>
     <script src="/js/ws-client.js"></script>
     <script src="/js/app.js"></script>

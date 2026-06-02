@@ -229,6 +229,10 @@ func (m *MockWSHubWithClose) CloseAll() error {
 	return nil
 }
 
+func (m *MockWSHubWithClose) HandleConnection(w http.ResponseWriter, r *http.Request) {
+	// no-op for HTTP server tests
+}
+
 func TestServeStaticFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 	frontendDir := filepath.Join(tmpDir, "frontend")

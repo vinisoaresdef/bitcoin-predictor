@@ -39,13 +39,6 @@ func (b *mockBuffer) AddCandle(candle schemas.Candle) {
 	b.candles = append(b.candles, candle)
 }
 
-// mockUpgrader creates a test WebSocket upgrader
-func mockUpgrader() *websocket.Upgrader {
-	return &websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool { return true },
-	}
-}
-
 // TestNewClientReceivesBuffer verifies that a new WebSocket client receives the current buffer snapshot
 func TestNewClientReceivesBuffer(t *testing.T) {
 	// Create mock buffer with some initial candles
@@ -114,18 +107,21 @@ func TestNewClientReceivesBuffer(t *testing.T) {
 		t.Error("Expected timestamp to be set")
 	}
 
-	// Read buffer snapshot candles
-	for i := 0; i < 2; i++ {
-		var klineMsg schemas.KlineMessage
-		err = ws.ReadJSON(&klineMsg)
-		if err != nil {
-			t.Fatalf("Failed to read kline message %d: %v", i, err)
-		}
-		if klineMsg.Type != "kline" {
-			t.Errorf("Expected type 'kline', got '%s'", klineMsg.Type)
-		}
-		if klineMsg.Candle.Symbol != "BTCUSDT" {
-			t.Errorf("Expected symbol 'BTCUSDT', got '%s'", klineMsg.Candle.Symbol)
+	// Read buffer snapshot (sent as a single batch message)
+	var snapshotMsg schemas.SnapshotMessage
+	err = ws.ReadJSON(&snapshotMsg)
+	if err != nil {
+		t.Fatalf("Failed to read snapshot message: %v", err)
+	}
+	if snapshotMsg.Type != "snapshot" {
+		t.Errorf("Expected type 'snapshot', got '%s'", snapshotMsg.Type)
+	}
+	if len(snapshotMsg.Candles) != 2 {
+		t.Errorf("Expected 2 candles in snapshot, got %d", len(snapshotMsg.Candles))
+	}
+	for _, candle := range snapshotMsg.Candles {
+		if candle.Symbol != "BTCUSDT" {
+			t.Errorf("Expected symbol 'BTCUSDT', got '%s'", candle.Symbol)
 		}
 	}
 }
@@ -420,5 +416,111 @@ func TestMessageFormat(t *testing.T) {
 	}
 	if statusMsg.Timestamp.IsZero() {
 		t.Error("Status message missing 'timestamp' field")
+	}
+}
+
+// TestBroadcastPrediction verifies that BroadcastPrediction sends prediction messages to all clients
+func TestBroadcastPrediction(t *testing.T) {
+	buffer := newMockBuffer()
+	candleChan := make(chan schemas.Candle, 100)
+	hub := NewWebSocketHub(buffer, candleChan)
+	go hub.Run()
+	defer hub.Stop()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hub.HandleConnection(w, r)
+	}))
+	defer server.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws"
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect: %v", err)
+	}
+	defer ws.Close()
+
+	// Wait for connection and consume status message
+	time.Sleep(200 * time.Millisecond)
+	ws.SetReadDeadline(time.Now().Add(time.Second))
+	var statusMsg schemas.StatusMessage
+	ws.ReadJSON(&statusMsg)
+	ws.SetReadDeadline(time.Time{})
+
+	// Broadcast a prediction
+	hub.BroadcastPrediction(&schemas.PredictionResult{
+		Direction:  "UP",
+		Confidence: 0.72,
+		PredictedCandle: schemas.Candle{
+			Symbol: "BTCUSDT",
+			Open:   50000.0,
+			High:   51000.0,
+			Low:    49000.0,
+			Close:  50500.0,
+			Volume: 100.0,
+		},
+	})
+
+	// Read the prediction message
+	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	var msg map[string]interface{}
+	err = ws.ReadJSON(&msg)
+	if err != nil {
+		t.Fatalf("Failed to read prediction message: %v", err)
+	}
+
+	if msgType, ok := msg["type"].(string); !ok || msgType != "prediction" {
+		t.Errorf("Expected type 'prediction', got %v", msg["type"])
+	}
+	if direction, ok := msg["direction"].(string); !ok || direction != "UP" {
+		t.Errorf("Expected direction 'UP', got %v", msg["direction"])
+	}
+	if confidence, ok := msg["confidence"].(float64); !ok || confidence != 0.72 {
+		t.Errorf("Expected confidence 0.72, got %v", msg["confidence"])
+	}
+}
+
+// TestBroadcastStatus verifies that BroadcastStatus sends status messages to all clients
+func TestBroadcastStatus(t *testing.T) {
+	buffer := newMockBuffer()
+	candleChan := make(chan schemas.Candle, 100)
+	hub := NewWebSocketHub(buffer, candleChan)
+	go hub.Run()
+	defer hub.Stop()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hub.HandleConnection(w, r)
+	}))
+	defer server.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws"
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("Failed to connect: %v", err)
+	}
+	defer ws.Close()
+
+	// Wait for connection and consume status message
+	time.Sleep(200 * time.Millisecond)
+	ws.SetReadDeadline(time.Now().Add(time.Second))
+	var statusMsg schemas.StatusMessage
+	ws.ReadJSON(&statusMsg)
+	ws.SetReadDeadline(time.Time{})
+
+	// Broadcast an error status
+	hub.BroadcastStatus("ml_error")
+
+	// Read the status message
+	ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+	var msg schemas.StatusMessage
+	err = ws.ReadJSON(&msg)
+	if err != nil {
+		t.Fatalf("Failed to read status message: %v", err)
+	}
+
+	if msg.Type != "status" {
+		t.Errorf("Expected type 'status', got '%s'", msg.Type)
+	}
+	if msg.Status != "ml_error" {
+		t.Errorf("Expected status 'ml_error', got '%s'", msg.Status)
 	}
 }

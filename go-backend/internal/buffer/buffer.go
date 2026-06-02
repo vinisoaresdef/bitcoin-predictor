@@ -81,3 +81,12 @@ func (rb *RingBuffer) IsFull() bool {
 	defer rb.mu.RUnlock()
 	return rb.size == rb.capacity
 }
+
+// Clear removes all candles from the buffer
+func (rb *RingBuffer) Clear() {
+	rb.mu.Lock()
+	defer rb.mu.Unlock()
+	rb.size = 0
+	rb.head = 0
+	rb.tail = 0
+}

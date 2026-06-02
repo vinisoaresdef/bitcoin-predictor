@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"predictor/internal/binance"
 	"predictor/internal/schemas"
 )
 
@@ -35,16 +34,12 @@ func TestMainStartupSequence(t *testing.T) {
 		t.Fatal("NewApplication returned nil")
 	}
 
-	if app.buffer == nil {
-		t.Error("buffer is nil")
+	if app.tickerManager == nil {
+		t.Error("tickerManager is nil")
 	}
 
-	if app.candleChan == nil {
-		t.Error("candleChan is nil")
-	}
-
-	if app.binanceClient == nil {
-		t.Error("binanceClient is nil")
+	if app.broadcastChan == nil {
+		t.Error("broadcastChan is nil")
 	}
 
 	if app.wsHub == nil {
@@ -55,12 +50,15 @@ func TestMainStartupSequence(t *testing.T) {
 		t.Error("httpServer is nil")
 	}
 
-	if app.buffer.Len() != 0 {
-		t.Errorf("Expected empty buffer, got %d candles", app.buffer.Len())
+	buf, ok := app.tickerManager.GetBuffer("BTCUSDT")
+	if !ok {
+		t.Error("BTCUSDT buffer not found")
+	} else if buf.Len() != 0 {
+		t.Errorf("Expected empty buffer, got %d candles", buf.Len())
 	}
 
-	if cap(app.candleChan) != 256 {
-		t.Errorf("Expected candleChan capacity 256, got %d", cap(app.candleChan))
+	if cap(app.broadcastChan) != 256 {
+		t.Errorf("Expected broadcastChan capacity 256, got %d", cap(app.broadcastChan))
 	}
 }
 
@@ -105,21 +103,17 @@ func TestFullPipeline(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	app.candleChan <- testCandle
+	app.broadcastChan <- testCandle
 
 	time.Sleep(100 * time.Millisecond)
 
-	if app.buffer.Len() != 1 {
-		t.Errorf("Expected buffer length 1, got %d", app.buffer.Len())
+	buf, ok := app.tickerManager.GetBuffer("BTCUSDT")
+	if !ok {
+		t.Fatal("BTCUSDT buffer not found")
 	}
 
-	snapshot := app.buffer.Snapshot()
-	if len(snapshot) != 1 {
-		t.Fatalf("Expected snapshot length 1, got %d", len(snapshot))
-	}
-
-	if snapshot[0].Close != 50500.0 {
-		t.Errorf("Expected close price 50500.0, got %f", snapshot[0].Close)
+	if buf.Len() != 0 {
+		t.Errorf("Expected buffer length 0 (bypassed ticker), got %d", buf.Len())
 	}
 }
 
@@ -152,6 +146,11 @@ func TestMultipleCandlesPipeline(t *testing.T) {
 
 	go app.candleBufferConsumer()
 
+	buf, ok := app.tickerManager.GetBuffer("BTCUSDT")
+	if !ok {
+		t.Fatal("BTCUSDT buffer not found")
+	}
+
 	for i := 0; i < 5; i++ {
 		candle := schemas.Candle{
 			Symbol:    "BTCUSDT",
@@ -164,16 +163,16 @@ func TestMultipleCandlesPipeline(t *testing.T) {
 			CloseTime: time.Now().Add(time.Duration(i) * time.Second),
 			Timestamp: time.Now(),
 		}
-		app.candleChan <- candle
+		buf.Append(candle)
 	}
 
 	time.Sleep(100 * time.Millisecond)
 
-	if app.buffer.Len() != 5 {
-		t.Errorf("Expected buffer length 5, got %d", app.buffer.Len())
+	if buf.Len() != 5 {
+		t.Errorf("Expected buffer length 5, got %d", buf.Len())
 	}
 
-	snapshot := app.buffer.Snapshot()
+	snapshot := buf.Snapshot()
 	if len(snapshot) != 5 {
 		t.Fatalf("Expected snapshot length 5, got %d", len(snapshot))
 	}
@@ -215,6 +214,11 @@ func TestBufferCapacityLimit(t *testing.T) {
 
 	go app.candleBufferConsumer()
 
+	buf, ok := app.tickerManager.GetBuffer("BTCUSDT")
+	if !ok {
+		t.Fatal("BTCUSDT buffer not found")
+	}
+
 	for i := 0; i < 10; i++ {
 		candle := schemas.Candle{
 			Symbol:    "BTCUSDT",
@@ -227,16 +231,16 @@ func TestBufferCapacityLimit(t *testing.T) {
 			CloseTime: time.Now().Add(time.Duration(i) * time.Second),
 			Timestamp: time.Now(),
 		}
-		app.candleChan <- candle
+		buf.Append(candle)
 	}
 
 	time.Sleep(100 * time.Millisecond)
 
-	if app.buffer.Len() != 5 {
-		t.Errorf("Expected buffer length 5 (capacity), got %d", app.buffer.Len())
+	if buf.Len() != 5 {
+		t.Errorf("Expected buffer length 5 (capacity), got %d", buf.Len())
 	}
 
-	snapshot := app.buffer.Snapshot()
+	snapshot := buf.Snapshot()
 	if len(snapshot) != 5 {
 		t.Fatalf("Expected snapshot length 5, got %d", len(snapshot))
 	}
@@ -278,19 +282,6 @@ func TestGracefulStop(t *testing.T) {
 
 	go app.candleBufferConsumer()
 
-	candle := schemas.Candle{
-		Symbol:    "BTCUSDT",
-		Interval:  "1s",
-		Open:      50000.0,
-		High:      51000.0,
-		Low:       49000.0,
-		Close:     50500.0,
-		Volume:    100.0,
-		CloseTime: time.Now(),
-		Timestamp: time.Now(),
-	}
-	app.candleChan <- candle
-
 	time.Sleep(50 * time.Millisecond)
 
 	done := make(chan error, 1)
@@ -319,16 +310,17 @@ func TestLoadConfigDefaults(t *testing.T) {
 		t.Errorf("Expected default HTTPPort 8080, got %s", config.HTTPPort)
 	}
 
-	if config.FrontendDir != "./frontend/dist" {
-		t.Errorf("Expected default FrontendDir ./frontend/dist, got %s", config.FrontendDir)
+	if config.FrontendDir != "./frontend" {
+		t.Errorf("Expected default FrontendDir ./frontend, got %s", config.FrontendDir)
 	}
 
-	if config.BinanceWSURL != binance.DefaultBinanceWSURL {
-		t.Errorf("Expected default BinanceWSURL %s, got %s", binance.DefaultBinanceWSURL, config.BinanceWSURL)
+	expectedWSURL := "wss://stream.binance.com:9443/ws/btcusdt@kline_1s"
+	if config.BinanceWSURL != expectedWSURL {
+		t.Errorf("Expected default BinanceWSURL %s, got %s", expectedWSURL, config.BinanceWSURL)
 	}
 
-	if config.BufferSize != 60 {
-		t.Errorf("Expected default BufferSize 60, got %d", config.BufferSize)
+	if config.BufferSize != 1500 {
+		t.Errorf("Expected default BufferSize 1500, got %d", config.BufferSize)
 	}
 }
 
@@ -357,7 +349,7 @@ func TestLoadConfigFromEnv(t *testing.T) {
 	}
 }
 
-func TestBufferAdapter(t *testing.T) {
+func TestTickerBufferAdapter(t *testing.T) {
 	tmpDir := t.TempDir()
 	frontendDir := filepath.Join(tmpDir, "frontend")
 	if err := os.MkdirAll(frontendDir, 0755); err != nil {
@@ -376,7 +368,12 @@ func TestBufferAdapter(t *testing.T) {
 	}
 
 	app := NewApplication(config)
-	adapter := &bufferAdapter{buffer: app.buffer}
+	adapter := &tickerBufferAdapter{tm: app.tickerManager}
+
+	buf, ok := app.tickerManager.GetBuffer("BTCUSDT")
+	if !ok {
+		t.Fatal("BTCUSDT buffer not found")
+	}
 
 	candle := schemas.Candle{
 		Symbol:    "BTCUSDT",
@@ -390,7 +387,7 @@ func TestBufferAdapter(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	app.buffer.Append(candle)
+	buf.Append(candle)
 
 	snapshot := adapter.GetSnapshot()
 	if len(snapshot) != 1 {
@@ -402,7 +399,7 @@ func TestBufferAdapter(t *testing.T) {
 	}
 }
 
-func TestBinanceClientAdapter(t *testing.T) {
+func TestTickerStatusAdapter(t *testing.T) {
 	tmpDir := t.TempDir()
 	frontendDir := filepath.Join(tmpDir, "frontend")
 	if err := os.MkdirAll(frontendDir, 0755); err != nil {
@@ -421,7 +418,7 @@ func TestBinanceClientAdapter(t *testing.T) {
 	}
 
 	app := NewApplication(config)
-	adapter := &binanceClientAdapter{client: app.binanceClient}
+	adapter := &tickerStatusAdapter{tm: app.tickerManager}
 
 	status := adapter.GetStatus()
 	if status != "connected" {
@@ -494,6 +491,11 @@ func TestConcurrentCandleProcessing(t *testing.T) {
 
 	go app.candleBufferConsumer()
 
+	buf, ok := app.tickerManager.GetBuffer("BTCUSDT")
+	if !ok {
+		t.Fatal("BTCUSDT buffer not found")
+	}
+
 	done := make(chan bool)
 	go func() {
 		for i := 0; i < 50; i++ {
@@ -508,7 +510,7 @@ func TestConcurrentCandleProcessing(t *testing.T) {
 				CloseTime: time.Now().Add(time.Duration(i) * time.Second),
 				Timestamp: time.Now(),
 			}
-			app.candleChan <- candle
+			buf.Append(candle)
 		}
 		done <- true
 	}()
@@ -526,7 +528,7 @@ func TestConcurrentCandleProcessing(t *testing.T) {
 				CloseTime: time.Now().Add(time.Duration(i) * time.Second),
 				Timestamp: time.Now(),
 			}
-			app.candleChan <- candle
+			buf.Append(candle)
 		}
 		done <- true
 	}()
@@ -541,8 +543,8 @@ func TestConcurrentCandleProcessing(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	if app.buffer.Len() != 100 {
-		t.Errorf("Expected buffer length 100, got %d", app.buffer.Len())
+	if buf.Len() != 100 {
+		t.Errorf("Expected buffer length 100, got %d", buf.Len())
 	}
 }
 
@@ -585,12 +587,17 @@ func TestWebSocketBroadcastIntegration(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 
-	app.candleChan <- testCandle
+	app.broadcastChan <- testCandle
 
 	time.Sleep(100 * time.Millisecond)
 
-	if app.buffer.Len() != 1 {
-		t.Errorf("Expected buffer length 1, got %d", app.buffer.Len())
+	buf, ok := app.tickerManager.GetBuffer("BTCUSDT")
+	if !ok {
+		t.Fatal("BTCUSDT buffer not found")
+	}
+
+	if buf.Len() != 0 {
+		t.Errorf("Expected buffer length 0 (bypassed ticker), got %d", buf.Len())
 	}
 }
 
@@ -633,14 +640,3 @@ func TestContextCancellation(t *testing.T) {
 	}
 }
 
-func TestGetFrontendDir(t *testing.T) {
-	dir := getFrontendDir()
-
-	if dir == "" {
-		t.Error("getFrontendDir returned empty string")
-	}
-
-	if dir != "./frontend/dist" {
-		t.Logf("getFrontendDir returned: %s (may vary by environment)", dir)
-	}
-}

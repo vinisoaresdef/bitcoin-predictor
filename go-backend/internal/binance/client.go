@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -60,26 +61,25 @@ func DefaultConfig() Config {
 	}
 }
 
-// Client represents a Binance WebSocket client
 type Client struct {
 	config       Config
 	conn         *websocket.Conn
-	candleChan   chan<- schemas.Candle
+	candleChan   chan schemas.Candle
 	stopChan     chan struct{}
 	wg           sync.WaitGroup
 	mu           sync.RWMutex
-	seenCandles  map[int64]struct{} // deduplication by close_time
-	lastClose    float64            // for zero-volume candle handling
+	seenCandles  map[int64]schemas.Candle
+	lastClose    float64
 	isRunning    bool
 }
 
 // NewClient creates a new Binance WebSocket client
-func NewClient(config Config, candleChan chan<- schemas.Candle) *Client {
+func NewClient(config Config, candleChan chan schemas.Candle) *Client {
 	return &Client{
 		config:      config,
 		candleChan:  candleChan,
 		stopChan:    make(chan struct{}),
-		seenCandles: make(map[int64]struct{}),
+		seenCandles: make(map[int64]schemas.Candle),
 	}
 }
 
@@ -125,7 +125,26 @@ func (c *Client) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop gracefully shuts down the client
+func (c *Client) ChangeStreamURL(url string) error {
+	c.mu.Lock()
+	oldURL := c.config.WSURL
+	c.config.WSURL = url
+	c.seenCandles = make(map[int64]schemas.Candle)
+	c.mu.Unlock()
+
+	if oldURL != url && c.conn != nil {
+		c.conn.Close()
+	}
+
+	return nil
+}
+
+func (c *Client) GetStreamURL() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.config.WSURL
+}
+
 func (c *Client) Stop() error {
 	c.mu.Lock()
 	if !c.isRunning {
@@ -143,6 +162,10 @@ func (c *Client) Stop() error {
 	}
 
 	return nil
+}
+
+func (c *Client) OutputChan() <-chan schemas.Candle {
+	return c.candleChan
 }
 
 // run is the main connection loop with reconnection logic
@@ -269,24 +292,29 @@ func (c *Client) connectAndProcess(ctx context.Context) error {
 	}
 }
 
-// isDuplicate checks if a candle has already been seen
+// isDuplicate checks if a candle has already been seen.
+// Partial (non-final) updates for the same close_time are allowed to flow through.
+// Once the FINAL candle for a close_time has been seen, subsequent duplicates are blocked.
 func (c *Client) isDuplicate(candle schemas.Candle) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	closeTimeMs := candle.CloseTime.UnixMilli()
-	if _, exists := c.seenCandles[closeTimeMs]; exists {
+	last, exists := c.seenCandles[closeTimeMs]
+
+	if !exists {
+		c.seenCandles[closeTimeMs] = candle
+		if len(c.seenCandles) > 100 {
+			c.cleanupOldEntries()
+		}
+		return false
+	}
+
+	if last.IsFinal {
 		return true
 	}
 
-	c.seenCandles[closeTimeMs] = struct{}{}
-
-	// Cleanup old entries to prevent memory growth
-	// Keep only recent candles (last 100)
-	if len(c.seenCandles) > 100 {
-		c.cleanupOldEntries()
-	}
-
+	c.seenCandles[closeTimeMs] = candle
 	return false
 }
 
@@ -298,18 +326,12 @@ func (c *Client) cleanupOldEntries() {
 		times = append(times, t)
 	}
 
-	// Sort and keep only the most recent 50
+	// Sort descending and keep only the most recent 50
 	if len(times) > 50 {
-		// Simple bubble sort for small arrays
-		for i := 0; i < len(times)-1; i++ {
-			for j := i + 1; j < len(times); j++ {
-				if times[i] < times[j] {
-					times[i], times[j] = times[j], times[i]
-				}
-			}
-		}
+		sort.Slice(times, func(i, j int) bool {
+			return times[i] > times[j]
+		})
 
-		// Remove old entries
 		for i := 50; i < len(times); i++ {
 			delete(c.seenCandles, times[i])
 		}
@@ -370,5 +392,6 @@ func ParseKlineMessage(data []byte) (schemas.Candle, error) {
 		Volume:    volume,
 		CloseTime: closeTime,
 		Timestamp: timestamp,
+		IsFinal:   k.IsFinal,
 	}, nil
 }

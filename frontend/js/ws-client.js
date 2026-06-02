@@ -1,85 +1,95 @@
 (function(global) {
   'use strict';
 
-  const DEFAULT_WS_URL = 'ws://localhost:8080/ws';
-  const MAX_RECONNECT_DELAY = 30000;
-  const RECONNECT_BASE_DELAY = 1000;
+  var MAX_RECONNECT_DELAY = 30000;
+  var RECONNECT_BASE_DELAY = 1000;
 
-  let ws = null;
-  let reconnectAttempts = 0;
-  let reconnectTimer = null;
-  let isConnecting = false;
-  let currentUrl = DEFAULT_WS_URL;
+  var ws = null;
+  var reconnectAttempts = 0;
+  var reconnectTimer = null;
+  var isConnecting = false;
+  var currentUrl = null;
 
-  const callbacks = {
+  var callbacks = {
     candle: [],
+    snapshot: [],
     status: [],
     prediction: [],
-    indicator: []
+    indicator: [],
+    timeframeChange: [],
+    tickerChange: []
   };
 
+  function getDefaultWSUrl() {
+    var loc = global.location;
+    if (!loc) return 'ws://localhost:8080/ws';
+    var protocol = loc.protocol === 'https:' ? 'wss:' : 'ws:';
+    return protocol + '//' + loc.host + '/ws';
+  }
+
   function createReconnectOverlay() {
-    let overlay = document.getElementById('ws-reconnecting-overlay');
-    if (!overlay) {
-      overlay = document.createElement('div');
-      overlay.id = 'ws-reconnecting-overlay';
-      overlay.style.cssText = [
-        'position: fixed',
-        'top: 0',
-        'left: 0',
-        'width: 100%',
-        'height: 100%',
-        'background-color: rgba(0, 0, 0, 0.7)',
-        'display: none',
-        'justify-content: center',
-        'align-items: center',
-        'z-index: 9999',
-        'color: white',
-        'font-family: sans-serif',
-        'font-size: 24px'
-      ].join(';');
-      
-      const message = document.createElement('div');
-      message.textContent = 'Reconnecting...';
-      message.style.cssText = 'padding: 20px; background: #333; border-radius: 8px;';
-      overlay.appendChild(message);
-      
-      document.body.appendChild(overlay);
-    }
+    var overlay = document.getElementById('ws-reconnecting-overlay');
+    if (overlay) return overlay;
+
+    overlay = document.createElement('div');
+    overlay.id = 'ws-reconnecting-overlay';
+    overlay.style.cssText = [
+      'position: fixed',
+      'top: 0',
+      'left: 0',
+      'width: 100%',
+      'height: 100%',
+      'background-color: rgba(0, 0, 0, 0.7)',
+      'display: none',
+      'justify-content: center',
+      'align-items: center',
+      'z-index: 9999',
+      'color: white',
+      'font-family: sans-serif',
+      'font-size: 24px'
+    ].join(';');
+
+    var message = document.createElement('div');
+    message.textContent = 'Reconnecting...';
+    message.style.cssText = 'padding: 20px; background: #333; border-radius: 8px;';
+    overlay.appendChild(message);
+
+    document.body.appendChild(overlay);
     return overlay;
   }
 
   function showReconnectOverlay() {
-    const overlay = createReconnectOverlay();
+    var overlay = createReconnectOverlay();
     overlay.style.display = 'flex';
   }
 
   function hideReconnectOverlay() {
-    const overlay = document.getElementById('ws-reconnecting-overlay');
+    var overlay = document.getElementById('ws-reconnecting-overlay');
     if (overlay) {
       overlay.style.display = 'none';
     }
   }
 
   function calculateBackoff(attempt) {
-    const delay = RECONNECT_BASE_DELAY * Math.pow(2, attempt);
+    var delay = RECONNECT_BASE_DELAY * Math.pow(2, attempt);
     return Math.min(delay, MAX_RECONNECT_DELAY);
   }
 
   function emit(eventName, data) {
-    if (callbacks[eventName]) {
-      callbacks[eventName].forEach(cb => {
+    var cbs = callbacks[eventName];
+    if (cbs) {
+      for (var i = 0; i < cbs.length; i++) {
         try {
-          cb(data);
+          cbs[i](data);
         } catch (err) {
           console.error('Error in callback:', err);
         }
-      });
+      }
     }
   }
 
   function handleMessage(event) {
-    let message;
+    var message;
     try {
       message = JSON.parse(event.data);
     } catch (err) {
@@ -87,19 +97,18 @@
       return;
     }
 
-    if (!message || typeof message !== 'object') {
-      return;
-    }
+    if (!message || typeof message !== 'object') return;
 
-    const messageType = message.type;
-
-    switch (messageType) {
+    switch (message.type) {
       case 'status':
         emit('status', message);
         break;
       case 'kline':
-        if (message.candle) {
-          emit('candle', message.candle);
+        if (message.candle) emit('candle', message.candle);
+        break;
+      case 'snapshot':
+        if (message.candles && Array.isArray(message.candles)) {
+          emit('snapshot', message.candles);
         }
         break;
       case 'prediction':
@@ -108,8 +117,21 @@
       case 'indicator':
         emit('indicator', message);
         break;
+      case 'timeframe_change_response':
+        emit('timeframeChange', message);
+        break;
+      case 'ticker_sub':
+        emit('tickerChange', message);
+        break;
+      case 'ticker_list':
+        if (message.tickers && Array.isArray(message.tickers)) {
+          message.tickers.forEach(function(ticker) {
+            emit('tickerChange', { type: 'ticker_sub', ticker: ticker, status: 'ok' });
+          });
+        }
+        break;
       default:
-        console.warn('Unknown message type:', messageType);
+        break;
     }
   }
 
@@ -117,17 +139,12 @@
     reconnectAttempts = 0;
     hideReconnectOverlay();
     isConnecting = false;
-    
-    const reconnectEvent = new CustomEvent('ws-reconnected', {
-      detail: { timestamp: Date.now() }
-    });
-    document.dispatchEvent(reconnectEvent);
   }
 
   function handleClose() {
     ws = null;
     isConnecting = false;
-    
+
     emit('status', {
       type: 'status',
       status: 'disconnected',
@@ -139,12 +156,6 @@
 
   function handleError(error) {
     console.error('WebSocket error:', error);
-    
-    emit('status', {
-      type: 'status',
-      status: 'error',
-      timestamp: new Date().toISOString()
-    });
   }
 
   function scheduleReconnect() {
@@ -154,10 +165,10 @@
 
     showReconnectOverlay();
 
-    const delay = calculateBackoff(reconnectAttempts);
+    var delay = calculateBackoff(reconnectAttempts);
     reconnectAttempts++;
 
-    reconnectTimer = setTimeout(() => {
+    reconnectTimer = setTimeout(function() {
       if (!ws || ws.readyState === WebSocket.CLOSED) {
         connect(currentUrl);
       }
@@ -165,20 +176,14 @@
   }
 
   function connect(url) {
-    if (isConnecting) {
-      return;
-    }
-
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      return;
-    }
+    if (isConnecting) return;
+    if (ws && ws.readyState === WebSocket.OPEN) return;
 
     isConnecting = true;
-    currentUrl = url || DEFAULT_WS_URL;
+    currentUrl = url || getDefaultWSUrl();
 
     try {
       ws = new WebSocket(currentUrl);
-
       ws.onopen = handleOpen;
       ws.onmessage = handleMessage;
       ws.onclose = handleClose;
@@ -206,37 +211,54 @@
     reconnectAttempts = 0;
   }
 
-  function onCandle(callback) {
-    if (typeof callback === 'function') {
-      callbacks.candle.push(callback);
+  function safeSend(data) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.warn('Cannot send: WebSocket not connected');
+      return false;
+    }
+    try {
+      ws.send(typeof data === 'string' ? data : JSON.stringify(data));
+      return true;
+    } catch (err) {
+      console.error('Failed to send WebSocket message:', err);
+      return false;
     }
   }
 
-  function onStatus(callback) {
-    if (typeof callback === 'function') {
-      callbacks.status.push(callback);
-    }
+  function sendTimeframeChange(timeframe, ticker) {
+    var message = { type: 'timeframe_change', timeframe: timeframe };
+    if (ticker) message.ticker = ticker;
+    safeSend(message);
   }
 
-  function onPrediction(callback) {
-    if (typeof callback === 'function') {
-      callbacks.prediction.push(callback);
-    }
+  function sendTickerSubscribe(ticker, timeframe) {
+    safeSend({
+      type: 'ticker_subscribe',
+      ticker: ticker,
+      timeframe: timeframe
+    });
   }
 
-  function onIndicator(callback) {
-    if (typeof callback === 'function') {
-      callbacks.indicator.push(callback);
-    }
+  function sendTickerUnsubscribe(ticker) {
+    safeSend({
+      type: 'ticker_unsubscribe',
+      ticker: ticker
+    });
   }
 
-  const WSClient = {
+  var WSClient = {
     connect: connect,
     disconnect: disconnect,
-    onCandle: onCandle,
-    onStatus: onStatus,
-    onPrediction: onPrediction,
-    onIndicator: onIndicator,
+    onCandle: function(cb) { if (typeof cb === 'function') callbacks.candle.push(cb); },
+    onSnapshot: function(cb) { if (typeof cb === 'function') callbacks.snapshot.push(cb); },
+    onStatus: function(cb) { if (typeof cb === 'function') callbacks.status.push(cb); },
+    onPrediction: function(cb) { if (typeof cb === 'function') callbacks.prediction.push(cb); },
+    onIndicator: function(cb) { if (typeof cb === 'function') callbacks.indicator.push(cb); },
+    onTimeframeChange: function(cb) { if (typeof cb === 'function') callbacks.timeframeChange.push(cb); },
+    onTickerChange: function(cb) { if (typeof cb === 'function') callbacks.tickerChange.push(cb); },
+    sendTimeframeChange: sendTimeframeChange,
+    sendTickerSubscribe: sendTickerSubscribe,
+    sendTickerUnsubscribe: sendTickerUnsubscribe,
     get isConnected() {
       return ws && ws.readyState === WebSocket.OPEN;
     },

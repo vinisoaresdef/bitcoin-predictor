@@ -33,9 +33,10 @@ type Buffer interface {
 	Len() int
 }
 
-// WSHub interface for closing client connections
+// WSHub interface for WebSocket hub operations
 type WSHub interface {
 	CloseAll() error
+	HandleConnection(w http.ResponseWriter, r *http.Request)
 }
 
 // Config holds server configuration
@@ -65,6 +66,7 @@ func NewHTTPServer(cfg Config) *HTTPServer {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", s.handleHealth)
+	mux.HandleFunc("/ws", s.handleWebSocket)
 	mux.HandleFunc("/", s.handleStatic)
 
 	s.server = &http.Server{
@@ -160,6 +162,13 @@ func (s *HTTPServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
+}
+
+// handleWebSocket upgrades HTTP connections to WebSocket
+func (s *HTTPServer) handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	if s.config.WSHub != nil {
+		s.config.WSHub.HandleConnection(w, r)
+	}
 }
 
 // handleStatic serves static files from the frontend directory

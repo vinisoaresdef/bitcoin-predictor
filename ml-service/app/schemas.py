@@ -12,17 +12,3 @@ class CandleData(BaseModel):
     close: float
     volume: float
     timestamp: datetime
-
-
-class PredictionInput(BaseModel):
-    """Input for prediction model."""
-    candles: list[CandleData]
-    features: Optional[dict] = None
-
-
-class PredictionOutput(BaseModel):
-    """Output from prediction model."""
-    direction: str  # UP, DOWN, UNCERTAIN
-    confidence: float
-    predicted_candle: CandleData
-    predicted_ma: float

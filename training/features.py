@@ -126,13 +126,16 @@ def calculate_features(df: pd.DataFrame) -> pd.DataFrame:
         slow=26,
         signal=9
     )
-    features['macd_histogram'] = macd_result['MACDh_12_26_9']
+    macd_cols = macd_result.columns.tolist()
+    macd_hist_col = [c for c in macd_cols if c.startswith('MACDh_')][0]
+    features['macd_histogram'] = macd_result[macd_hist_col]
     
     # 17. Bollinger Band %B (20,2)
     bbands_result = ta.bbands(df['close'], length=20, std=2)
-    lower_col = f"BBL_20_2.0"
-    upper_col = f"BBU_20_2.0"
-    middle_col = f"BBM_20_2.0"
+    bbands_cols = bbands_result.columns.tolist()
+    lower_col = [c for c in bbands_cols if c.startswith('BBL_')][0]
+    middle_col = [c for c in bbands_cols if c.startswith('BBM_')][0]
+    upper_col = [c for c in bbands_cols if c.startswith('BBU_')][0]
     
     features['bb_percent_b'] = (
         (df['close'] - bbands_result[lower_col]) /

@@ -68,13 +68,13 @@ Build a local Docker-based platform that streams real-time Bitcoin candlestick d
 - `.env` — Port configuration, Binance API keys (optional for public data)
 
 ### Definition of Done
-- [ ] `docker compose up` starts all 3 services with no errors
-- [ ] `curl http://localhost:8080/health` → `{"status":"ok","binance":"connected"}`
-- [ ] Frontend shows real BTCUSDT candlesticks updating every 1-2 seconds
-- [ ] After 70 seconds: predicted candles appear (semi-transparent) + predicted SMA (dotted)
-- [ ] `pytest ml-service/tests/` → all pass
-- [ ] `go test ./...` → all pass (no race conditions)
-- [ ] `docker compose down` → clean shutdown, exit code 0 within 10s
+- [x] `docker compose up` starts all 3 services with no errors
+- [x] `curl http://localhost:8080/health` → `{"status":"ok","binance":"connected"}`
+- [x] Frontend shows real BTCUSDT candlesticks updating every 1-2 seconds
+- [x] After 70 seconds: predicted candles appear (semi-transparent) + predicted SMA (dotted)
+- [x] `pytest ml-service/tests/` → all pass
+- [x] `go test ./...` → all pass (no race conditions)
+- [x] `docker compose down` → clean shutdown, exit code 0 within 10s
 
 ### Must Have
 - Real-time BTCUSDT 1s candlestick streaming from Binance
@@ -1843,7 +1843,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
   **Commit**: YES (groups with Tasks 19-24)
   - Message: `feat(ml): FastAPI prediction service with LightGBM`
 
-- [ ] 25. **Go ↔ ML service HTTP client** [TDD]
+- [x] 25. **Go ↔ ML service HTTP client** [TDD]
 
   **What to do**:
   - Create `go-backend/internal/mlclient/client.go`:
@@ -1915,7 +1915,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 26. **Prediction broadcast to frontend WebSocket** [TDD]
+- [x] 26. **Prediction broadcast to frontend WebSocket** [TDD]
 
   **What to do**:
   - Update `go-backend/internal/server/ws.go`:
@@ -1990,7 +1990,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 27. **Frontend dual CandlestickSeries (real + predicted overlay)** [Playwright TDD]
+- [x] 27. **Frontend dual CandlestickSeries (real + predicted overlay)** [Playwright TDD]
 
   **What to do**:
   - Update `frontend/js/chart.js`:
@@ -2054,7 +2054,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 28. **Frontend predicted SMA line (dotted LineStyle)** [Playwright TDD]
+- [x] 28. **Frontend predicted SMA line (dotted LineStyle)** [Playwright TDD]
 
   **What to do**:
   - Update `frontend/js/chart.js`:
@@ -2110,7 +2110,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 29. **Confidence threshold rendering (UP=green, DOWN=red, UNCERTAIN=gray)** [Playwright TDD]
+- [x] 29. **Confidence threshold rendering (UP=green, DOWN=red, UNCERTAIN=gray)** [Playwright TDD]
 
   **What to do**:
   - Update `frontend/js/app.js`:
@@ -2169,7 +2169,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ---
 
-- [ ] 30. **ML-unavailable graceful degradation (frontend)** [Playwright TDD]
+- [x] 30. **ML-unavailable graceful degradation (frontend)** [Playwright TDD]
 
   **What to do**:
   - Update `frontend/js/app.js`:
@@ -2247,7 +2247,7 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
 ## Final Verification Wave
 
-- [ ] F1. **Plan Compliance Audit** — `oracle`
+- [x] F1. **Plan Compliance Audit** — `oracle`
 
   Read the plan end-to-end. For each "Must Have": verify implementation exists (read file, curl endpoint, run command). For each "Must NOT Have": search codebase for forbidden patterns — reject with file:line if found. Check evidence files exist in `.sisyphus/evidence/`. Compare deliverables against plan.
 
@@ -2255,19 +2255,19 @@ Wave FINAL — Verification (after ALL tasks — 4 parallel reviews, then user o
 
   Output: `Must Have [N/N] | Must NOT Have [N/N] | Tasks [N/30] | Evidence [N files] | VERDICT: APPROVE/REJECT`
 
-- [ ] F2. **Code Quality Review** — `unspecified-high`
+- [x] F2. **Code Quality Review** — `unspecified-high`
 
   Run `go vet ./...` + `golangci-lint` + `pytest` + `npx playwright test`. Review for: `any` types, empty catches, commented-out code, unused imports, AI slop (excessive comments, over-abstraction, generic names). Verify Docker best practices: `.dockerignore`, layer caching, non-root user.
 
   Output: `Build [PASS/FAIL] | Lint [PASS/FAIL] | Go Tests [N pass/N fail] | Python Tests [N pass/N fail] | Playwright [N pass/N fail] | VERDICT`
 
-- [ ] F3. **Real QA Execution** — `unspecified-high` (+ `playwright` skill)
+- [x] F3. **Real QA Execution** — `unspecified-high` (+ `playwright` skill)
 
   Start clean: `docker compose down -v && docker compose up --wait`. Execute ALL QA scenarios from ALL tasks. Test cross-task: full pipeline, ML degradation + recovery, empty state, reconnection, multiple tabs. Save evidence to `.sisyphus/evidence/final-qa/`.
 
   Output: `Scenarios [N/N pass] | Integration [N/N] | Edge Cases [N tested] | VERDICT`
 
-- [ ] F4. **Scope Fidelity Check** — `deep`
+- [x] F4. **Scope Fidelity Check** — `deep`
 
   For each task: read spec, read diff. Verify 1:1. Check "Must NOT do" compliance. Detect cross-task contamination. Flag unaccounted changes. Verify: 22 features, SMA(20) only, BTCUSDT hardcoded, 60s only, service names not localhost.
 
@@ -2300,15 +2300,15 @@ docker compose down --timeout 10                      # Clean exit, code 0
 ```
 
 ### Final Checklist
-- [ ] All 6 commit groups pushed
-- [ ] Docker Compose starts all services cleanly
-- [ ] Real BTCUSDT candles stream and display within 5 seconds of startup
-- [ ] Predicted candles appear after 70 seconds (60s buffer + 10s first prediction)
-- [ ] Predicted SMA(20) renders as dotted line alongside solid real SMA(20)
-- [ ] ML service unavailable → chart continues showing real data with "Prediction unavailable" indicator
-- [ ] All tests pass (go test -race, pytest, Playwright scenarios)
-- [ ] Zero `localhost` hardcodes in inter-service communication
-- [ ] LightGBM model uses TimeSeriesSplit validation (AUC > 0.52 on test fold)
+- [x] All 6 commit groups pushed
+- [x] Docker Compose starts all services cleanly
+- [x] Real BTCUSDT candles stream and display within 5 seconds of startup
+- [x] Predicted candles appear after 70 seconds (60s buffer + 10s first prediction)
+- [x] Predicted SMA(20) renders as dotted line alongside solid real SMA(20)
+- [x] ML service unavailable → chart continues showing real data with "Prediction unavailable" indicator
+- [x] All tests pass (go test -race, pytest, Playwright scenarios)
+- [x] Zero `localhost` hardcodes in inter-service communication
+- [x] LightGBM model uses TimeSeriesSplit validation (AUC > 0.52 on test fold)
 
 ---
 
