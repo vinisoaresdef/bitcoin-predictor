@@ -48,11 +48,11 @@ func TestMLClient_Predict(t *testing.T) {
 			errContains: "exactly 60 candles required",
 		},
 		{
-			name:        "ML service unavailable",
-			candles:     generateTestCandles(60),
+			name:         "ML service unavailable",
+			candles:      generateTestCandles(60),
 			serverStatus: http.StatusServiceUnavailable,
-			wantErr:     true,
-			errContains: "ML service unavailable",
+			wantErr:      true,
+			errContains:  "ML service unavailable",
 		},
 		{
 			name:         "invalid input",

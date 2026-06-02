@@ -62,15 +62,15 @@ func DefaultConfig() Config {
 }
 
 type Client struct {
-	config       Config
-	conn         *websocket.Conn
-	candleChan   chan schemas.Candle
-	stopChan     chan struct{}
-	wg           sync.WaitGroup
-	mu           sync.RWMutex
-	seenCandles  map[int64]schemas.Candle
-	lastClose    float64
-	isRunning    bool
+	config      Config
+	conn        *websocket.Conn
+	candleChan  chan schemas.Candle
+	stopChan    chan struct{}
+	wg          sync.WaitGroup
+	mu          sync.RWMutex
+	seenCandles map[int64]schemas.Candle
+	lastClose   float64
+	isRunning   bool
 }
 
 // NewClient creates a new Binance WebSocket client

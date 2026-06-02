@@ -10,7 +10,7 @@ import (
 // TestAppendWithinCapacity verifies that appending within capacity works correctly
 func TestAppendWithinCapacity(t *testing.T) {
 	buf := New(60)
-	
+
 	// Append 30 candles
 	for i := 0; i < 30; i++ {
 		candle := schemas.Candle{
@@ -26,11 +26,11 @@ func TestAppendWithinCapacity(t *testing.T) {
 		}
 		buf.Append(candle)
 	}
-	
+
 	if buf.Len() != 30 {
 		t.Errorf("Expected Len() = 30, got %d", buf.Len())
 	}
-	
+
 	if buf.IsFull() {
 		t.Error("Expected IsFull() = false for 30/60 capacity")
 	}
@@ -39,7 +39,7 @@ func TestAppendWithinCapacity(t *testing.T) {
 // TestAppendExceedsCapacity verifies that oldest candles are evicted when capacity exceeded
 func TestAppendExceedsCapacity(t *testing.T) {
 	buf := New(60)
-	
+
 	// Append 61 candles (1 more than capacity)
 	for i := 0; i < 61; i++ {
 		candle := schemas.Candle{
@@ -55,26 +55,26 @@ func TestAppendExceedsCapacity(t *testing.T) {
 		}
 		buf.Append(candle)
 	}
-	
+
 	if buf.Len() != 60 {
 		t.Errorf("Expected Len() = 60 after evicting, got %d", buf.Len())
 	}
-	
+
 	if !buf.IsFull() {
 		t.Error("Expected IsFull() = true for 60/60 capacity")
 	}
-	
+
 	// Verify oldest was evicted (first candle should have Open=1, not 0)
 	snapshot := buf.Snapshot()
 	if len(snapshot) == 0 {
 		t.Fatal("Snapshot is empty")
 	}
-	
+
 	// First candle should now have Open=1 (the second one appended)
 	if snapshot[0].Open != 1 {
 		t.Errorf("Expected first candle Open=1 after eviction, got %f", snapshot[0].Open)
 	}
-	
+
 	// Last candle should have Open=60 (the last one appended)
 	if snapshot[len(snapshot)-1].Open != 60 {
 		t.Errorf("Expected last candle Open=60, got %f", snapshot[len(snapshot)-1].Open)
@@ -84,7 +84,7 @@ func TestAppendExceedsCapacity(t *testing.T) {
 // TestSnapshotReturnsCopy verifies that modifying the returned slice doesn't affect the buffer
 func TestSnapshotReturnsCopy(t *testing.T) {
 	buf := New(60)
-	
+
 	// Append a candle
 	candle := schemas.Candle{
 		Symbol:    "BTCUSDT",
@@ -98,20 +98,20 @@ func TestSnapshotReturnsCopy(t *testing.T) {
 		Timestamp: time.Now(),
 	}
 	buf.Append(candle)
-	
+
 	// Get snapshot and modify it
 	snapshot := buf.Snapshot()
 	if len(snapshot) == 0 {
 		t.Fatal("Snapshot is empty")
 	}
 	snapshot[0].Open = 999.0
-	
+
 	// Get snapshot again - should not be modified
 	snapshot2 := buf.Snapshot()
 	if len(snapshot2) == 0 {
 		t.Fatal("Second snapshot is empty")
 	}
-	
+
 	if snapshot2[0].Open != 100.0 {
 		t.Errorf("Expected buffer unchanged (Open=100.0), got %f", snapshot2[0].Open)
 	}
@@ -121,7 +121,7 @@ func TestSnapshotReturnsCopy(t *testing.T) {
 func TestConcurrentReadWrite(t *testing.T) {
 	buf := New(60)
 	done := make(chan bool)
-	
+
 	// Writer goroutine
 	go func() {
 		for i := 0; i < 100; i++ {
@@ -140,7 +140,7 @@ func TestConcurrentReadWrite(t *testing.T) {
 		}
 		done <- true
 	}()
-	
+
 	// Reader goroutine 1
 	go func() {
 		for i := 0; i < 100; i++ {
@@ -150,7 +150,7 @@ func TestConcurrentReadWrite(t *testing.T) {
 		}
 		done <- true
 	}()
-	
+
 	// Reader goroutine 2
 	go func() {
 		for i := 0; i < 100; i++ {
@@ -160,12 +160,12 @@ func TestConcurrentReadWrite(t *testing.T) {
 		}
 		done <- true
 	}()
-	
+
 	// Wait for all goroutines
 	for i := 0; i < 3; i++ {
 		<-done
 	}
-	
+
 	// Final verification
 	if buf.Len() > 60 {
 		t.Errorf("Buffer exceeded capacity: Len() = %d", buf.Len())
@@ -179,7 +179,7 @@ func TestNewWithInvalidSize(t *testing.T) {
 	if buf != nil {
 		t.Error("Expected nil buffer for zero capacity")
 	}
-	
+
 	// Test negative capacity
 	buf = New(-1)
 	if buf != nil {
@@ -190,15 +190,15 @@ func TestNewWithInvalidSize(t *testing.T) {
 // TestEmptyBuffer verifies behavior with empty buffer
 func TestEmptyBuffer(t *testing.T) {
 	buf := New(60)
-	
+
 	if buf.Len() != 0 {
 		t.Errorf("Expected Len() = 0 for empty buffer, got %d", buf.Len())
 	}
-	
+
 	if buf.IsFull() {
 		t.Error("Expected IsFull() = false for empty buffer")
 	}
-	
+
 	snapshot := buf.Snapshot()
 	if len(snapshot) != 0 {
 		t.Errorf("Expected empty snapshot, got %d elements", len(snapshot))
@@ -208,7 +208,7 @@ func TestEmptyBuffer(t *testing.T) {
 // TestSnapshotOrder verifies candles are returned in chronological order
 func TestSnapshotOrder(t *testing.T) {
 	buf := New(60)
-	
+
 	// Append candles with known order
 	for i := 0; i < 5; i++ {
 		candle := schemas.Candle{
@@ -224,12 +224,12 @@ func TestSnapshotOrder(t *testing.T) {
 		}
 		buf.Append(candle)
 	}
-	
+
 	snapshot := buf.Snapshot()
 	if len(snapshot) != 5 {
 		t.Fatalf("Expected 5 candles, got %d", len(snapshot))
 	}
-	
+
 	// Verify order is maintained
 	for i, candle := range snapshot {
 		expectedOpen := float64(i * 10)

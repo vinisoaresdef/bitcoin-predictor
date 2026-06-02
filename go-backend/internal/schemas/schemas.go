@@ -28,10 +28,10 @@ type CandleData struct {
 
 // PredictionResult represents the ML service prediction response
 type PredictionResult struct {
-	Direction       string    `json:"direction"`
-	Confidence      float64   `json:"confidence"`
-	PredictedCandle Candle    `json:"predicted_candle"`
-	PredictedMA     float64   `json:"predicted_ma"`
+	Direction       string  `json:"direction"`
+	Confidence      float64 `json:"confidence"`
+	PredictedCandle Candle  `json:"predicted_candle"`
+	PredictedMA     float64 `json:"predicted_ma"`
 }
 
 // PredictionInput represents the ML service /predict endpoint request

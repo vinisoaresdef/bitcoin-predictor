@@ -22,7 +22,7 @@ func New(capacity int) *RingBuffer {
 	if capacity <= 0 {
 		return nil
 	}
-	
+
 	return &RingBuffer{
 		data:     make([]schemas.Candle, capacity),
 		capacity: capacity,
@@ -37,10 +37,10 @@ func New(capacity int) *RingBuffer {
 func (rb *RingBuffer) Append(candle schemas.Candle) {
 	rb.mu.Lock()
 	defer rb.mu.Unlock()
-	
+
 	rb.data[rb.tail] = candle
 	rb.tail = (rb.tail + 1) % rb.capacity
-	
+
 	if rb.size < rb.capacity {
 		rb.size++
 	} else {
@@ -54,17 +54,17 @@ func (rb *RingBuffer) Append(candle schemas.Candle) {
 func (rb *RingBuffer) Snapshot() []schemas.Candle {
 	rb.mu.RLock()
 	defer rb.mu.RUnlock()
-	
+
 	if rb.size == 0 {
 		return []schemas.Candle{}
 	}
-	
+
 	result := make([]schemas.Candle, rb.size)
 	for i := 0; i < rb.size; i++ {
 		idx := (rb.head + i) % rb.capacity
 		result[i] = rb.data[idx]
 	}
-	
+
 	return result
 }
 
